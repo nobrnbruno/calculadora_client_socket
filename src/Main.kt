@@ -4,35 +4,35 @@ import java.io.IOException
 import java.io.InputStreamReader
 import java.net.Socket
 
-object CalculadoraClientSocket {
-    @JvmStatic
-    fun main(args: Array<String>) {
-        print("Insira a operacao que deseja usar \nSoma (1), Subtracao (2), Multiplicacao (3) e Divisao (4): ")
-        val operacao = readln()
+fun main() {
+    print("Digite a expressão matemática (ex: 2 + 3 * (4 - 1)): ")
+    val expressao = readln()
 
-        print("Insira o primeiro numero: ")
-        val oper1 = readln()
+    val resultado = try {
+        val tokens = tokenize(expressao)
+        val postfix = infixToPostfix(tokens)
+        val tree = buildExpressionTree(postfix)
+        tree.evaluate()
+    } catch (e: Exception) {
+        println("Erro ao avaliar expressão: ${e.message}")
+        return
+    }
 
-        print("Insira o segundo numero: ")
-        val oper2 = readln()
+    try {
+        val clientSocket = Socket("localhost", 9090)
+        val socketSaidaServer = DataOutputStream(clientSocket.getOutputStream())
+        val socketEntrada = BufferedReader(InputStreamReader(clientSocket.getInputStream()))
 
-        var result : String?
-        try {
-            val clientSocket = Socket("192.168.1.99", 9090)
-            val socketSaidaServer = DataOutputStream(clientSocket.getOutputStream())
-            
-            socketSaidaServer.writeBytes(operacao + "\n")
-            socketSaidaServer.writeBytes(oper1 + "\n")
-            socketSaidaServer.writeBytes(oper2 + "\n")
-            socketSaidaServer.flush()
-            
-            val messageFromServer = BufferedReader(InputStreamReader(clientSocket.getInputStream()))
-            result = messageFromServer.readLine()
+        socketSaidaServer.writeBytes("1\n") // operação fictícia (soma)
+        socketSaidaServer.writeBytes("$resultado\n") // resultado calculado
+        socketSaidaServer.writeBytes("0\n") // oper2 = 0, ignorado
+        socketSaidaServer.flush()
 
-            println("resultado=$result")
-            clientSocket.close()
-        } catch (e: IOException) {
-            e.printStackTrace()
-        }
+        val response = socketEntrada.readLine()
+        println("Resposta do servidor: $response")
+
+        clientSocket.close()
+    } catch (e: IOException) {
+        e.printStackTrace()
     }
 }
